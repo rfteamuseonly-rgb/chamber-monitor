@@ -59,7 +59,7 @@ GID = "0"
 # 直接使用 gid 來抓取，徹底避開中文名稱編碼問題
 CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&gid={GID}&tq=SELECT%20*%20ORDER%20BY%20A%20DESC%20LIMIT%2050"
 
-@st.cache_data(ttl=60) # 設定快取 10 秒，避免太多人看時塞爆 Google
+@st.cache_data(ttl=300) # 設定快取 10 秒，避免太多人看時塞爆 Google
 def get_latest_data():
     try:
         # 讀取雲端 CSV
@@ -176,5 +176,5 @@ while True:
                 st.markdown(render_card(chamber, data_dict), unsafe_allow_html=True)
 
     # 暫停 10 秒後重新整理畫面 (避免狂刷 Google API)
-    time.sleep(60)
+    time.sleep(300)
     st.rerun()
