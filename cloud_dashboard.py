@@ -27,7 +27,7 @@ st.markdown("""
 
     /* 狀態顏色定義 (紅綠燈底色) */
     .status-green { border-left: 8px solid #28a745; background-color: #f5faf6; }
-    .status-yellow { border-left: 8px solid #ffc107; background-color: #fff3cd; }
+    .status-yellow { border-left: 8px solid #ffc107; background-color: #ffffeb; }
     .status-red { border-left: 8px solid #dc3545; background-color: #f8d7da; }
     .status-offline { border-left: 8px solid #6c757d; background-color: #f2f2f2; }
 
