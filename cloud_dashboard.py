@@ -26,7 +26,7 @@ st.markdown("""
     .sensor-card:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.15); }
 
     /* 狀態顏色定義 (紅綠燈底色) */
-    .status-green { border-left: 8px solid #28a745; background-color: #d4edda; }
+    .status-green { border-left: 8px solid #28a745; background-color: #edfaf0; }
     .status-yellow { border-left: 8px solid #ffc107; background-color: #fff3cd; }
     .status-red { border-left: 8px solid #dc3545; background-color: #f8d7da; }
     .status-offline { border-left: 8px solid #6c757d; background-color: #f2f2f2; }
@@ -136,42 +136,42 @@ st.markdown("---")
 placeholder = st.empty()
 
 # 設備清單 (根據您的房間號碼)
-ROOMS_5XX = ["502", "503", "504", "505", "509", "510", "511"]
-ROOMS_6XX = ["602", "603", "604", "605", "607", "608"]
-ROOMS_7XX = ["703", "706", "707", "708"]
-ROOMS_8XX = ["803", "804", "808", "809", "810"]
+Chamber_5F = ["502", "503", "504", "505", "509", "510", "511"]
+Chamber_6F = ["602", "603", "604", "605", "607", "608"]
+Chamber_7F = ["703", "706", "707", "708"]
+Chamber_8F = ["803", "804", "808", "809", "810"]
 
 while True:
     data_dict = get_latest_data()
     
     with placeholder.container():
-        st.subheader("📍 5xx Rooms")
+        st.subheader("📍 5F Chamber")
         cols = st.columns(4)
-        for i, chamber in enumerate(ROOMS_5XX):
+        for i, chamber in enumerate(Chamber_5F):
             with cols[i % 4]:
                 st.markdown(render_card(chamber, data_dict), unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        st.subheader("📍 6xx Rooms")
+        st.subheader("📍 6F Chamber")
         cols_6 = st.columns(4)
-        for i, chamber in enumerate(ROOMS_6XX):
+        for i, chamber in enumerate(Chamber_6F):
             with cols_6[i % 4]:
                 st.markdown(render_card(chamber, data_dict), unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        st.subheader("📍 7xx Rooms")
+        st.subheader("📍 7F Chamber")
         cols_6 = st.columns(4)
-        for i, chamber in enumerate(ROOMS_7XX):
+        for i, chamber in enumerate(Chamber_7F):
             with cols_6[i % 4]:
                 st.markdown(render_card(chamber, data_dict), unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        st.subheader("📍 8xx Rooms")
+        st.subheader("📍 8F Chamber")
         cols_6 = st.columns(4)
-        for i, chamber in enumerate(ROOMS_8XX):
+        for i, chamber in enumerate(Chamber_8F):
             with cols_6[i % 4]:
                 st.markdown(render_card(chamber, data_dict), unsafe_allow_html=True)
 
