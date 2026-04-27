@@ -26,7 +26,7 @@ st.markdown("""
     .sensor-card:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.15); }
 
     /* 狀態顏色定義 (紅綠燈底色) */
-    .status-green { border-left: 8px solid #28a745; background-color: #edfaf0; }
+    .status-green { border-left: 8px solid #28a745; background-color: ##f5faf6; }
     .status-yellow { border-left: 8px solid #ffc107; background-color: #fff3cd; }
     .status-red { border-left: 8px solid #dc3545; background-color: #f8d7da; }
     .status-offline { border-left: 8px solid #6c757d; background-color: #f2f2f2; }
@@ -37,7 +37,7 @@ st.markdown("""
     }
     .room-name { font-size: 1.4em; font-weight: bold; color: #333; }
     .history-btn { 
-        background-color: #4a90e2; color: white; 
+        background-color: #a9d0fc; color: white; 
         padding: 2px 10px; border-radius: 4px; font-size: 0.8em; text-decoration: none;
     }
     .data-row { font-size: 1.1em; margin: 5px 0; color: #444; }
