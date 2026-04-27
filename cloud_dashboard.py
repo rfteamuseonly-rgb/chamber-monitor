@@ -26,7 +26,7 @@ st.markdown("""
     .sensor-card:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.15); }
 
     /* 狀態顏色定義 (紅綠燈底色) */
-    .status-green { border-left: 8px solid #28a745; background-color: ##f5faf6; }
+    .status-green { border-left: 8px solid #28a745; background-color: #f5faf6; }
     .status-yellow { border-left: 8px solid #ffc107; background-color: #fff3cd; }
     .status-red { border-left: 8px solid #dc3545; background-color: #f8d7da; }
     .status-offline { border-left: 8px solid #6c757d; background-color: #f2f2f2; }
