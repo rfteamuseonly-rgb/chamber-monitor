@@ -175,6 +175,6 @@ while True:
             with cols_6[i % 4]:
                 st.markdown(render_card(chamber, data_dict), unsafe_allow_html=True)
 
-    # 暫停 10 秒後重新整理畫面 (避免狂刷 Google API)
+    # 暫停 300 秒後重新整理畫面 (避免狂刷 Google API)
     time.sleep(300)
     st.rerun()
