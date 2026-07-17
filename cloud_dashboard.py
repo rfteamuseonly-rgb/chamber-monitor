@@ -24,7 +24,6 @@ common_css = """
 <style>
     #MainMenu {visibility: hidden;} 
     footer {visibility: hidden;}
-    header {visibility: hidden;}
     .block-container { padding-top: 2rem !important; padding-bottom: 1rem !important; }
     h3 { margin-top: -10px !important; margin-bottom: 5px !important; }
 </style>
