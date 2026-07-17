@@ -1,32 +1,39 @@
 import streamlit as st
 import pandas as pd
 
-# 設定網頁標題與寬度
-st.set_page_config(page_title="Chamber 環境雲端看板", layout="wide")
+# 設定網頁標題與寬度 (初始隱藏側邊欄)
+st.set_page_config(page_title="Chamber 環境雲端看板", layout="wide", initial_sidebar_state="collapsed")
 
 # ==========================================
-# 0. 側邊欄：選擇介面風格
+# 0. 網頁自動重整與主標題
 # ==========================================
-with st.sidebar:
-    st.title("⚙️ 介面設定")
+# 啟用瀏覽器自動重整 (每 5 分鐘)
+st.markdown('<meta http-equiv="refresh" content="300">', unsafe_allow_html=True)
+st.markdown("<h2 style='margin-bottom:10px;'>🏭 Chamber 溫濕度雲端即時監控</h2>", unsafe_allow_html=True)
+
+# ==========================================
+# 1. 新的設定選單：折疊面板 (Expander)
+# ==========================================
+# 捨棄側邊欄，改用主畫面中的折疊面板，不佔用常駐空間
+with st.expander("⚙️ 點擊展開 / 隱藏介面設定 (風格切換)", expanded=False):
     style_choice = st.radio(
-        "選擇顯示風格：",
+        "請選擇您喜歡的顯示風格：",
         ["經典簡約卡片", "科技儀表板 (深色)", "新擬態風格 (柔和)", "極簡進度條 (直觀)"],
-        index=0
+        index=0,
+        horizontal=True # 橫向排列節省空間
     )
-    st.markdown("---")
-    st.info("💡 目前為「適中舒適」佈局，已恢復更新時間顯示，並啟用自動重整 (每 5 分鐘)。")
 
 # ==========================================
-# 1. 適中密度 CSS 樣式定義 (加入時間戳記樣式)
+# 2. CSS 樣式定義 (徹底隱藏頂部干擾)
 # ==========================================
-# 移除 header hidden 以保留側邊欄切換按鈕
+# 這次我們可以安心地把 header 徹底隱藏，因為不需要那個大按鈕了
 common_css = """
 <style>
     #MainMenu {visibility: hidden;} 
     footer {visibility: hidden;}
-    .block-container { padding-top: 2rem !important; padding-bottom: 1rem !important; }
-    h3 { margin-top: -10px !important; margin-bottom: 5px !important; }
+    header {visibility: hidden;} 
+    .block-container { padding-top: 1.5rem !important; padding-bottom: 1rem !important; }
+    h3 { margin-top: 5px !important; margin-bottom: 10px !important; }
 </style>
 """
 st.markdown(common_css, unsafe_allow_html=True)
@@ -42,7 +49,7 @@ elif style_choice == "新擬態風格 (柔和)": st.markdown(css_neumorphism, un
 elif style_choice == "極簡進度條 (直觀)": st.markdown(css_minimal, unsafe_allow_html=True)
 
 # ==========================================
-# 2. 資料獲取與處理
+# 3. 資料獲取與處理
 # ==========================================
 SHEET_ID = "17msOHAvXZ9iND5fMJVUd7n3C_TFXD-uTFH4rvVLwJ7k".strip()
 GID = "0" 
@@ -71,7 +78,7 @@ def get_status_color(temp, humi):
     except: return "offline"
 
 # ==========================================
-# 3. 介面渲染函數
+# 4. 介面渲染函數
 # ==========================================
 def render_card(chamber_id, data_dict):
     temp = data_dict.get(chamber_id, {}).get('temp', "---")
@@ -82,11 +89,8 @@ def render_card(chamber_id, data_dict):
     humi_disp = f"{float(humi):.1f}%" if humi != "---" else "--"
     status = get_status_color(temp, humi)
     
-    # 取出純時間 (HH:MM:SS)，去除日期部分
     time_disp = str(time_raw).split(" ")[-1] if " " in str(time_raw) else time_raw
-    
     sheet_link = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}"
-    
     temp_pct = min((float(temp) / 40.0) * 100, 100) if temp != "---" else 0
     humi_pct = min((float(humi) / 100.0) * 100, 100) if humi != "---" else 0
 
@@ -101,11 +105,8 @@ def render_card(chamber_id, data_dict):
         return f'<div class="min-card"><div class="min-header"><span>{chamber_id}</span> <span>{icon}</span></div><div class="min-label"><span>溫度</span> <span>{temp_disp}</span></div><div class="bar-bg"><div class="bar-fill-temp" style="width: {temp_pct}%;"></div></div><div class="min-label"><span>濕度</span> <span>{humi_disp}</span></div><div class="bar-bg"><div class="bar-fill-humi" style="width: {humi_pct}%;"></div></div><div class="min-timestamp">Updated: {time_disp}</div></div>'
 
 # ==========================================
-# 4. 主畫面佈局
+# 5. 主畫面佈局
 # ==========================================
-st.markdown('<meta http-equiv="refresh" content="300">', unsafe_allow_html=True)
-st.markdown("<h2 style='margin-bottom:20px;'>🏭 Chamber 溫濕度雲端即時監控</h2>", unsafe_allow_html=True)
-
 Chambers = {
     "5F": ["502", "503", "504", "505", "509", "510", "511"],
     "6F": ["602", "603", "604", "605", "607", "608"],
@@ -121,5 +122,4 @@ for floor, rooms in Chambers.items():
     for i, chamber in enumerate(rooms):
         with cols[i % 4]:
             st.markdown(render_card(chamber, data_dict), unsafe_allow_html=True)
-    
     st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
