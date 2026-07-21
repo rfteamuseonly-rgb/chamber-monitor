@@ -1,44 +1,94 @@
 import streamlit as st
 import pandas as pd
+import streamlit.components.v1 as components
 
 # 設定網頁標題與寬度 (初始隱藏側邊欄)
 st.set_page_config(page_title="Chamber 環境雲端看板", layout="wide", initial_sidebar_state="collapsed")
 
 # ==========================================
-# 0. 網頁自動重整與主標題
+# 0. 網頁自動重整 (保留參數機制) 與 主標題
 # ==========================================
-# 啟用瀏覽器自動重整 (每 5 分鐘)
-st.markdown('<meta http-equiv="refresh" content="300">', unsafe_allow_html=True)
+# ❌ 移除會吃掉狀態的 <meta refresh>
+# ✅ 改用 JavaScript 讀取外層完整網址並重新載入，確保 Query Params 不會遺失
+components.html(
+    """
+    <script>
+    setTimeout(function() {
+        window.parent.location.href = window.parent.location.href;
+    }, 300000); // 300000 毫秒 = 5 分鐘
+    </script>
+    """,
+    height=0,
+    width=0
+)
+
 st.markdown("<h2 style='margin-bottom:10px;'>🏭 Chamber 溫濕度雲端即時監控</h2>", unsafe_allow_html=True)
 
+# 定義所有的 Chamber 樓層與房間 (提早定義，供狀態初始化使用)
+Chambers = {
+    "5F": ["502", "503", "504", "505", "509", "510", "511"],
+    "6F": ["602", "603", "604", "605", "607", "608"],
+    "7F": ["703", "706", "707", "708"],
+    "8F": ["803", "804", "808", "809", "810"]
+}
+all_floors = list(Chambers.keys())
+
 # ==========================================
-# 1. 狀態保留 (URL Query Params) 與 設定選單
+# 1. 狀態保留機制 (Session State + Query Params)
 # ==========================================
 STYLE_OPTIONS = [
     "經典簡約卡片", "科技儀表板 (深色)", "新擬態風格 (柔和)", "極簡進度條 (直觀)",
     "賽博龐克 (霓虹科幻)", "玻璃擬物 (液體波紋)", "極簡光環 (脈動警報)"
 ]
 
-# 🌟 從網址列讀取記憶的風格，若無則預設為 "經典簡約卡片"
-current_style = st.query_params.get("style", "經典簡約卡片")
-if current_style not in STYLE_OPTIONS:
-    current_style = "經典簡約卡片"
-style_index = STYLE_OPTIONS.index(current_style)
+# 步驟 A: 讀取網址參數來初始化 Session State
+if "style_choice" not in st.session_state:
+    st.session_state.style_choice = st.query_params.get("style", "經典簡約卡片")
+    # 防呆：如果網址參數被亂改，退回預設值
+    if st.session_state.style_choice not in STYLE_OPTIONS:
+        st.session_state.style_choice = "經典簡約卡片"
 
+if "floor_choice" not in st.session_state:
+    q_floors = st.query_params.get_all("floors")
+    st.session_state.floor_choice = q_floors if q_floors else all_floors
+
+# 步驟 B: 確保第一次載入時，預設狀態也有寫入網址列
+if "initialized" not in st.session_state:
+    st.query_params["style"] = st.session_state.style_choice
+    st.query_params["floors"] = st.session_state.floor_choice
+    st.session_state.initialized = True
+
+# 步驟 C: 定義狀態改變時的 Callback (同步更新網址參數)
+def update_params():
+    st.query_params["style"] = st.session_state.style_choice
+    st.query_params["floors"] = st.session_state.floor_choice
+
+# ==========================================
+# 2. 設定選單：折疊面板 (Expander)
+# ==========================================
 with st.expander("⚙️ 點擊展開 / 隱藏介面設定 (風格切換)", expanded=False):
-    style_choice = st.radio(
+    # 透過 key 屬性將元件直接綁定到 session_state，並設定 on_change 事件
+    st.radio(
         "請選擇您喜歡的顯示風格：",
         STYLE_OPTIONS,
-        index=style_index,  # 帶入從網址列抓取到的選項 (預設為經典簡約卡片)
+        key="style_choice",
+        on_change=update_params,
         horizontal=True
     )
     
-    # 🌟 若使用者切換了風格，立即更新至網址列參數，這樣重刷就不會跑掉
-    if style_choice != current_style:
-        st.query_params["style"] = style_choice
+    st.multiselect(
+        "🏢 請選擇要監控的樓層 (支援單選與多選)：",
+        options=all_floors,
+        key="floor_choice",
+        on_change=update_params
+    )
+
+# 將當下的選擇存為變數，供後續渲染使用
+style_choice = st.session_state.style_choice
+selected_floors = st.session_state.floor_choice
 
 # ==========================================
-# 2. CSS 樣式定義
+# 3. CSS 樣式定義
 # ==========================================
 common_css = """
 <style>
@@ -111,6 +161,7 @@ css_ringpulse = """
 </style>
 """
 
+# 套用選擇的樣式
 if style_choice == "經典簡約卡片": st.markdown(css_classic, unsafe_allow_html=True)
 elif style_choice == "科技儀表板 (深色)": st.markdown(css_modern, unsafe_allow_html=True)
 elif style_choice == "新擬態風格 (柔和)": st.markdown(css_neumorphism, unsafe_allow_html=True)
@@ -120,7 +171,7 @@ elif style_choice == "玻璃擬物 (液體波紋)": st.markdown(css_glassmorphis
 elif style_choice == "極簡光環 (脈動警報)": st.markdown(css_ringpulse, unsafe_allow_html=True)
 
 # ==========================================
-# 3. 資料獲取與處理
+# 4. 資料獲取與處理
 # ==========================================
 SHEET_ID = "17msOHAvXZ9iND5fMJVUd7n3C_TFXD-uTFH4rvVLwJ7k".strip()
 GID = "0" 
@@ -149,7 +200,7 @@ def get_status_color(temp, humi):
     except: return "offline"
 
 # ==========================================
-# 4. 介面渲染函數
+# 5. 介面渲染函數
 # ==========================================
 def render_card(chamber_id, data_dict):
     temp = data_dict.get(chamber_id, {}).get('temp', "---")
@@ -186,35 +237,8 @@ def render_card(chamber_id, data_dict):
         return f'<div class="ring-card {alert_class}"><div class="ring-header">{chamber_id}</div><div class="ring-container"><div style="text-align:center;"><div class="ring-gauge" style="background: conic-gradient({color_t} {temp_pct}%, #edf2f7 0);"><div class="ring-inner">Temp</div></div><div class="ring-data-val">{temp_disp}</div></div><div style="text-align:center;"><div class="ring-gauge" style="background: conic-gradient({color_h} {humi_pct}%, #edf2f7 0);"><div class="ring-inner">Humi</div></div><div class="ring-data-val">{humi_disp}</div></div></div></div>'
 
 # ==========================================
-# 5. 主畫面佈局與樓層篩選 (也加入狀態保留)
+# 6. 主畫面佈局渲染
 # ==========================================
-Chambers = {
-    "5F": ["502", "503", "504", "505", "509", "510", "511"],
-    "6F": ["602", "603", "604", "605", "607", "608"],
-    "7F": ["703", "706", "707", "708"],
-    "8F": ["803", "804", "808", "809", "810"]
-}
-
-all_floors = list(Chambers.keys())
-
-# 🌟 從網址列讀取記憶的樓層，若初始化時 URL 無參數則全選
-if "initialized" not in st.query_params:
-    current_floors = all_floors
-    st.query_params["initialized"] = "1"
-    st.query_params["floors"] = current_floors
-else:
-    current_floors = st.query_params.get_all("floors")
-
-selected_floors = st.multiselect(
-    "🏢 請選擇要監控的樓層 (支援單選與多選)：",
-    options=all_floors,
-    default=current_floors
-)
-
-# 🌟 若使用者切換了樓層，立即更新至網址列參數
-if set(selected_floors) != set(st.query_params.get_all("floors")):
-    st.query_params["floors"] = selected_floors
-
 st.markdown("<hr style='margin-top: 5px; margin-bottom: 15px;'>", unsafe_allow_html=True)
 
 data_dict = get_latest_data()
