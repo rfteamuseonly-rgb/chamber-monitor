@@ -145,7 +145,7 @@ css_cyberpunk = """
     .cyber-data { font-size: 1.1em; text-align: center; } 
     
     /* 將數值變大並設定為 block 讓它換行顯示在標籤下方 */
-    .cyber-val { font-size: 3.0em; font-weight: bold; display: block; margin-top: 5px; }
+    .cyber-val { font-size: 2.6em; font-weight: bold; display: block; margin-top: 5px; }
     
     .cyber-warn-badge { display: none; color: #fff; padding: 2px 6px; font-size: 0.6em; border-radius: 3px; animation: blink 0.5s infinite;}
     
