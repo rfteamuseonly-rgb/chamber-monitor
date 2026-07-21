@@ -8,13 +8,12 @@ st.set_page_config(page_title="Chamber 環境雲端看板", layout="wide", initi
 # ==========================================
 # 0. 網頁自動重整機制
 # ==========================================
-# 使用官方推薦的 st_autorefresh，它會在背景更新數據，完全不會刷掉使用者的選擇
 st_autorefresh(interval=300000, limit=None, key="data_refresh")
 
 st.markdown("<h2 style='margin-bottom:10px;'>🏭 Chamber 溫濕度雲端即時監控</h2>", unsafe_allow_html=True)
 
 # ==========================================
-# 1. 樓層定義與狀態選單 (使用 key 自動記憶狀態)
+# 1. 樓層定義與狀態選單
 # ==========================================
 Chambers = {
     "5F": ["502", "503", "504", "505", "509", "510", "511"],
@@ -26,14 +25,14 @@ all_floors = list(Chambers.keys())
 
 STYLE_OPTIONS = [
     "經典簡約卡片", "科技儀表板 (深色)", "新擬態風格 (柔和)", "極簡進度條 (直觀)",
-    "賽博龐克 (霓虹科幻)", "玻璃擬物 (液體波紋)", "極簡光環 (脈動警報)"
+    "賽博龐克 (霓虹科幻)", "玻璃擬物 (液體波紋)", "極簡光環 (脈警報)"
 ]
 
 with st.expander("⚙️ 點擊展開 / 隱藏介面設定 (風格切換)", expanded=False):
     style_choice = st.radio(
         "請選擇您喜歡的顯示風格：",
         STYLE_OPTIONS,
-        index=0, # 預設：經典簡約卡片
+        index=0, 
         key="ui_style", 
         horizontal=True
     )
@@ -48,7 +47,7 @@ with st.expander("⚙️ 點擊展開 / 隱藏介面設定 (風格切換)", expa
 st.markdown("<hr style='margin-top: 5px; margin-bottom: 15px;'>", unsafe_allow_html=True)
 
 # ==========================================
-# 2. 完整展開的 CSS 樣式定義 (修復區間顏色警示)
+# 2. 完整展開的 CSS 樣式定義 (補回遺失的時間樣式)
 # ==========================================
 st.markdown("""
 <style>
@@ -87,7 +86,6 @@ css_modern = """
     .gauge-ring { width: 70px; height: 70px; border-radius: 50%; display: flex; justify-content: center; align-items: center; background: #1e2030; border: 4px solid #4b5070; }
     .gauge-val { font-size: 1.1em; font-weight: bold; }
     .gauge-title { margin-top: 6px; font-size: 0.8em; color: #8fa1cd; }
-    /* 區間顏色狀態 */
     .status-green .gauge-ring { border-color: #00d2ff; box-shadow: 0 0 10px rgba(0,210,255,0.3); }
     .status-yellow .gauge-ring { border-color: #f6ad55; box-shadow: 0 0 10px rgba(246,173,85,0.4); }
     .status-red .gauge-ring { border-color: #fc8181; box-shadow: 0 0 10px rgba(252,129,129,0.5); }
@@ -105,22 +103,21 @@ css_neumorphism = """
     .neu-room { font-size: 1.3em; font-weight: bold; color: #5a6a85; }
     .neu-data { background-color: #e0e5ec; border-radius: 8px; padding: 8px; margin-bottom: 8px; text-align: center; box-shadow: inset 4px 4px 8px rgb(163,177,198,0.5), inset -4px -4px 8px rgba(255,255,255, 0.5); font-size: 0.9em;}
     .neu-val { font-size: 1.3em; font-weight: 900; }
-    /* 區間顏色狀態 */
     .neu-green .neu-val { color: #2ecc71; }
     .neu-yellow .neu-val { color: #f39c12; }
     .neu-red .neu-val { color: #e74c3c; }
+    .neu-timestamp { font-size: 0.75em; color: #8fa1cd; text-align: right; margin-top: 8px; }
 </style>
 """
 
-# 4. 極簡進度條
+# 4. 極簡進度條 (補回 min-label 與 min-timestamp)
 css_minimal = """
 <style>
     .min-card { background: #fff; border-radius: 10px; padding: 15px; margin-bottom: 12px; border: 1px solid #f0f0f0; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
     .min-header { font-size: 1.1em; font-weight: bold; color: #222; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;}
     .bar-bg { background: #f0f0f0; border-radius: 8px; height: 8px; width: 100%; margin: 4px 0 12px 0; overflow: hidden; }
-    .bar-fill { height: 100%; border-radius: 8px; }
+    .bar-fill { height: 100%; border-radius: 8px; transition: width 0.5s ease-in-out; }
     
-    /* 區間顏色狀態 (左側邊框 + 進度條顏色聯動) */
     .min-status-green { border-left: 6px solid #28a745; }
     .min-status-green .bar-fill { background: linear-gradient(90deg, #84fab0 0%, #8fd3f4 100%); }
     
@@ -130,11 +127,12 @@ css_minimal = """
     .min-status-red { border-left: 6px solid #dc3545; background-color: #fffafa; }
     .min-status-red .bar-fill { background: linear-gradient(90deg, #ff9a9e 0%, #fecfef 100%); }
     
-    .min-label { display: flex; justify-content: space-between; font-size: 0.85em; color: #666; font-weight: bold; }
+    .min-label { display: flex; justify-content: space-between; font-size: 0.85em; color: #666; font-weight: bold; margin-bottom: 4px; }
+    .min-timestamp { font-size: 0.75em; color: #aaa; text-align: right; margin-top: 8px; }
 </style>
 """
 
-# 5. 賽博龐克 (完美對應 綠/黃/紅)
+# 5. 賽博龐克
 css_cyberpunk = """
 <style>
     .stApp { background-color: #010103; color: #0ff; font-family: 'Courier New', Courier, monospace; }
@@ -145,20 +143,17 @@ css_cyberpunk = """
     .cyber-val { font-size: 1.2em; font-weight: bold;}
     .cyber-warn-badge { display: none; color: #fff; padding: 2px 6px; font-size: 0.6em; border-radius: 3px; animation: blink 0.5s infinite;}
     
-    /* 綠色/正常狀態 */
     .cyber-green { border-color: #0ff; box-shadow: 0 0 10px rgba(0,255,255,0.3); }
     .cyber-green .cyber-header { color: #0ff; border-bottom-color: #0ff; text-shadow: 0 0 5px #0ff; }
     .cyber-green .cyber-data { color: #0ff; text-shadow: 0 0 5px #0ff; }
     .cyber-green .cyber-val { color: #0f0; text-shadow: 0 0 8px #0f0; }
     
-    /* 黃色/警告狀態 */
     .cyber-yellow { border-color: #ff0; box-shadow: 0 0 10px rgba(255,255,0,0.4); }
     .cyber-yellow .cyber-header { color: #ff0; border-bottom-color: #ff0; text-shadow: 0 0 5px #ff0; }
     .cyber-yellow .cyber-data { color: #e6a817; text-shadow: 0 0 5px #e6a817; }
     .cyber-yellow .cyber-val { color: #ff0; text-shadow: 0 0 8px #ff0; }
     .cyber-yellow .cyber-warn-badge { display: inline-block; background: #e6a817; }
     
-    /* 紅色/危險狀態 */
     .cyber-red { border-color: #f00; box-shadow: 0 0 15px rgba(255,0,0,0.6); animation: glitch-border 0.5s infinite; }
     .cyber-red .cyber-header { color: #f00; border-bottom-color: #f00; text-shadow: 2px 0 #0ff, -2px 0 #f00; animation: glitch-text 0.3s infinite; }
     .cyber-red .cyber-data { color: #f00; text-shadow: 0 0 5px #f00; }
@@ -183,8 +178,8 @@ css_glassmorphism = """
     .glass-label { font-size: 0.8em; color: #555; margin-bottom: 4px; }
     .glass-val { font-size: 1.5em; font-weight: 800; }
     .glass-liquid { position: absolute; bottom: -50%; left: -50%; width: 200%; height: 200%; border-radius: 40%; z-index: 0; }
+    .glass-timestamp { font-size: 0.7em; color: #666; text-align: right; margin-top: 8px; z-index: 2; position: relative; }
     
-    /* 區間顏色狀態 */
     .glass-green { border: 1px solid rgba(255, 255, 255, 0.6); box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1); }
     .glass-green .glass-data-block { background: rgba(52, 152, 219, 0.15); }
     .glass-green .glass-val { color: #2c3e50; }
@@ -215,8 +210,8 @@ css_ringpulse = """
     .ring-gauge { width: 70px; height: 70px; border-radius: 50%; display: flex; align-items: center; justify-content: center; position: relative; }
     .ring-inner { width: 56px; height: 56px; background: #ffffff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.9em; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);}
     .ring-data-val { font-size: 1.1em; font-weight: bold; margin-top: 5px; }
+    .ring-timestamp { font-size: 0.75em; color: #a0aec0; text-align: right; width: 100%; margin-top: 12px; }
     
-    /* 區間顏色狀態 */
     .ring-green { background: #ffffff; border: 1px solid #edf2f7; }
     .ring-yellow { background: #fffff0; border: 2px solid #ecc94b; }
     .ring-yellow .ring-inner { color: #b7791f; }
@@ -234,7 +229,7 @@ elif style_choice == "新擬態風格 (柔和)": st.markdown(css_neumorphism, un
 elif style_choice == "極簡進度條 (直觀)": st.markdown(css_minimal, unsafe_allow_html=True)
 elif style_choice == "賽博龐克 (霓虹科幻)": st.markdown(css_cyberpunk, unsafe_allow_html=True)
 elif style_choice == "玻璃擬物 (液體波紋)": st.markdown(css_glassmorphism, unsafe_allow_html=True)
-elif style_choice == "極簡光環 (脈動警報)": st.markdown(css_ringpulse, unsafe_allow_html=True)
+elif style_choice == "極簡光環 (脈警報)": st.markdown(css_ringpulse, unsafe_allow_html=True)
 
 # ==========================================
 # 3. 資料獲取與處理邏輯
@@ -260,13 +255,13 @@ def get_status_color(temp, humi):
     if pd.isna(temp) or pd.isna(humi) or temp == "---" or humi == "---": return "offline"
     try:
         t, h = float(temp), float(humi)
-        if t > 26 or h > 75: return "red"       # 危險
-        if (17 <= t <= 24) and (10 <= h <= 65): return "green" # 正常
-        return "yellow"                         # 警告
+        if t > 26 or h > 75: return "red"       
+        if (17 <= t <= 24) and (10 <= h <= 65): return "green" 
+        return "yellow"                         
     except: return "offline"
 
 # ==========================================
-# 4. 介面渲染函數 (修復 class 與顏色綁定)
+# 4. 介面渲染函數 (補回所有遺失的 HTML)
 # ==========================================
 def render_card(chamber_id, data_dict):
     temp = data_dict.get(chamber_id, {}).get('temp', "---")
@@ -275,37 +270,40 @@ def render_card(chamber_id, data_dict):
     
     temp_disp = f"{float(temp):.1f}°C" if temp != "---" else "--"
     humi_disp = f"{float(humi):.1f}%" if humi != "---" else "--"
-    status = get_status_color(temp, humi) # 會回傳 "green", "yellow", "red"
+    status = get_status_color(temp, humi) 
     time_disp = str(time_raw).split(" ")[-1] if " " in str(time_raw) else time_raw
     
     temp_pct = min((float(temp) / 40.0) * 100, 100) if temp != "---" else 0
     humi_pct = min((float(humi) / 100.0) * 100, 100) if humi != "---" else 0
 
     if style_choice == "經典簡約卡片":
-        return f'<div class="sensor-card status-{status}"><div class="card-header"><span class="room-name">{chamber_id}</span></div><div class="data-row">Temp: <span class="data-val">{temp_disp}</span></div><div class="data-row">Humidity: <span class="data-val">{humi_disp}</span></div><div style="font-size: 0.75em; color: #888; text-align: right; margin-top: 6px;">{time_disp}</div></div>'
+        return f'<div class="sensor-card status-{status}"><div class="card-header"><span class="room-name">{chamber_id}</span></div><div class="data-row">Temp: <span class="data-val">{temp_disp}</span></div><div class="data-row">Humidity: <span class="data-val">{humi_disp}</span></div><div class="timestamp">Updated: {time_disp}</div></div>'
     
     elif style_choice == "科技儀表板 (深色)":
-        return f'<div class="tech-card status-{status}"><div class="tech-header"><span class="tech-room">{chamber_id}</span></div><div class="gauges-container"><div class="gauge-wrapper"><div class="gauge-ring"><span class="gauge-val">{temp_disp}</span></div></div><div class="gauge-wrapper"><div class="gauge-ring"><span class="gauge-val">{humi_disp}</span></div></div></div><div class="tech-timestamp">{time_disp}</div></div>'
+        return f'<div class="tech-card status-{status}"><div class="tech-header"><span class="tech-room">{chamber_id}</span></div><div class="gauges-container"><div class="gauge-wrapper"><div class="gauge-ring"><span class="gauge-val">{temp_disp}</span></div></div><div class="gauge-wrapper"><div class="gauge-ring"><span class="gauge-val">{humi_disp}</span></div></div></div><div class="tech-timestamp">Updated: {time_disp}</div></div>'
     
     elif style_choice == "新擬態風格 (柔和)":
-        return f'<div class="neu-card neu-{status}"><div class="neu-header"><span class="neu-room">{chamber_id}</span></div><div class="neu-data">溫度 <br><span class="neu-val">{temp_disp}</span></div><div class="neu-data">濕度 <br><span class="neu-val">{humi_disp}</span></div></div>'
+        # 補回更新時間: <div class="neu-timestamp">
+        return f'<div class="neu-card neu-{status}"><div class="neu-header"><span class="neu-room">{chamber_id}</span></div><div class="neu-data">溫度 <br><span class="neu-val">{temp_disp}</span></div><div class="neu-data">濕度 <br><span class="neu-val">{humi_disp}</span></div><div class="neu-timestamp">Updated: {time_disp}</div></div>'
     
     elif style_choice == "極簡進度條 (直觀)":
         icon = "🟢" if status == "green" else "🟡" if status == "yellow" else "🔴"
-        return f'<div class="min-card min-status-{status}"><div class="min-header"><span>{chamber_id}</span><span>{icon}</span></div><div class="bar-bg"><div class="bar-fill" style="width: {temp_pct}%;"></div></div><div class="bar-bg"><div class="bar-fill" style="width: {humi_pct}%;"></div></div></div>'
+        # 補回文字標籤 (溫度 / 濕度) 與數值，以及下方更新時間
+        return f'<div class="min-card min-status-{status}"><div class="min-header"><span>{chamber_id}</span><span>{icon}</span></div><div class="min-label"><span>溫度</span> <span>{temp_disp}</span></div><div class="bar-bg"><div class="bar-fill" style="width: {temp_pct}%;"></div></div><div class="min-label"><span>濕度</span> <span>{humi_disp}</span></div><div class="bar-bg"><div class="bar-fill" style="width: {humi_pct}%;"></div></div><div class="min-timestamp">Updated: {time_disp}</div></div>'
     
     elif style_choice == "賽博龐克 (霓虹科幻)":
         warn_txt = "SYS.OK" if status == "green" else ("SYS.WARN" if status == "yellow" else "SYS.ERR")
         return f'<div class="cyber-card cyber-{status}"><div class="cyber-header"><span>{chamber_id}</span><span class="cyber-warn-badge">{warn_txt}</span></div><div class="cyber-data">TMP: <span class="cyber-val">{temp_disp}</span></div><div class="cyber-data">HUM: <span class="cyber-val">{humi_disp}</span></div><div style="font-size:0.7em; color:#888; text-align:right; margin-top:8px;">LAST_SYNC: {time_disp}</div></div>'
     
     elif style_choice == "玻璃擬物 (液體波紋)":
-        return f'<div class="glass-card glass-{status}"><div class="glass-liquid" style="top: {100 - (humi_pct * 0.8)}%;"></div><div class="glass-header">{chamber_id}</div><div class="glass-data-row"><div class="glass-data-block"><div class="glass-label">溫度</div><div class="glass-val">{temp_disp}</div></div><div class="glass-data-block"><div class="glass-label">濕度</div><div class="glass-val">{humi_disp}</div></div></div></div>'
+        # 補回更新時間: <div class="glass-timestamp">
+        return f'<div class="glass-card glass-{status}"><div class="glass-liquid" style="top: {100 - (humi_pct * 0.8)}%;"></div><div class="glass-header">{chamber_id}</div><div class="glass-data-row"><div class="glass-data-block"><div class="glass-label">溫度</div><div class="glass-val">{temp_disp}</div></div><div class="glass-data-block"><div class="glass-label">濕度</div><div class="glass-val">{humi_disp}</div></div></div><div class="glass-timestamp">Updated: {time_disp}</div></div>'
     
-    elif style_choice == "極簡光環 (脈動警報)":
-        # 決定外圈的 conic-gradient 顏色
+    elif style_choice == "極簡光環 (脈警報)":
         color_t = "#fc8181" if status == "red" else ("#ecc94b" if status == "yellow" else "#4299e1")
         color_h = "#fc8181" if status == "red" else ("#ecc94b" if status == "yellow" else "#48bb78")
-        return f'<div class="ring-card ring-{status}"><div class="ring-header">{chamber_id}</div><div class="ring-container"><div style="text-align:center;"><div class="ring-gauge" style="background: conic-gradient({color_t} {temp_pct}%, #edf2f7 0);"><div class="ring-inner">Temp</div></div><div class="ring-data-val">{temp_disp}</div></div><div style="text-align:center;"><div class="ring-gauge" style="background: conic-gradient({color_h} {humi_pct}%, #edf2f7 0);"><div class="ring-inner">Humi</div></div><div class="ring-data-val">{humi_disp}</div></div></div></div>'
+        # 補回更新時間: <div class="ring-timestamp">
+        return f'<div class="ring-card ring-{status}"><div class="ring-header">{chamber_id}</div><div class="ring-container"><div style="text-align:center;"><div class="ring-gauge" style="background: conic-gradient({color_t} {temp_pct}%, #edf2f7 0);"><div class="ring-inner">Temp</div></div><div class="ring-data-val">{temp_disp}</div></div><div style="text-align:center;"><div class="ring-gauge" style="background: conic-gradient({color_h} {humi_pct}%, #edf2f7 0);"><div class="ring-inner">Humi</div></div><div class="ring-data-val">{humi_disp}</div></div></div><div class="ring-timestamp">Updated: {time_disp}</div></div>'
 
 # ==========================================
 # 5. 主畫面佈局渲染
