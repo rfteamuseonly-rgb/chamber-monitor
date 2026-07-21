@@ -1,19 +1,22 @@
 import streamlit as st
 import pandas as pd
+from streamlit_autorefresh import st_autorefresh
 
 # 設定網頁標題與寬度 (初始隱藏側邊欄)
 st.set_page_config(page_title="Chamber 環境雲端看板", layout="wide", initial_sidebar_state="collapsed")
 
 # ==========================================
-# 0. 網頁自動重整與主標題
+# 0. 網頁自動重整機制 (核心修正區)
 # ==========================================
-# 啟用瀏覽器自動重整 (每 5 分鐘)
-# 這裡會自動依照當下瀏覽器網址列的完整 URL (包含設定參數) 進行重新載入
-st.markdown('<meta http-equiv="refresh" content="300">', unsafe_allow_html=True)
+# 🌟 使用 st_autorefresh 取代 <meta refresh>
+# 這會在後台每 5 分鐘 (300000 毫秒) 重新拉取資料並更新畫面，
+# 但「不會」重整整個瀏覽器，因此使用者的所有選擇都會被完美保留！
+st_autorefresh(interval=300000, limit=None, key="data_refresh")
+
 st.markdown("<h2 style='margin-bottom:10px;'>🏭 Chamber 溫濕度雲端即時監控</h2>", unsafe_allow_html=True)
 
 # ==========================================
-# 1. 樓層定義與狀態參數還原 (核心修正區)
+# 1. 樓層定義與選單
 # ==========================================
 Chambers = {
     "5F": ["502", "503", "504", "505", "509", "510", "511"],
@@ -28,63 +31,27 @@ STYLE_OPTIONS = [
     "賽博龐克 (霓虹科幻)", "玻璃擬物 (液體波紋)", "極簡光環 (脈動警報)"
 ]
 
-# --- 從網址列讀取記憶的設定 (相容新舊版 Streamlit API) ---
-saved_style = "經典簡約卡片"
-saved_floors = all_floors
-
-try:
-    if hasattr(st, "query_params"):  # Streamlit >= 1.30
-        if "style" in st.query_params:
-            saved_style = st.query_params["style"]
-        if "floors" in st.query_params:
-            saved_floors = st.query_params.get_all("floors")
-    else:  # Streamlit < 1.30
-        params = st.experimental_get_query_params()
-        if "style" in params:
-            saved_style = params["style"][0]
-        if "floors" in params:
-            saved_floors = params["floors"]
-except Exception:
-    pass
-
-# 防呆：確保讀取到的設定是合法的
-if saved_style not in STYLE_OPTIONS:
-    saved_style = "經典簡約卡片"
-valid_floors = [f for f in saved_floors if f in all_floors]
-if not valid_floors:
-    valid_floors = all_floors
-
-# ==========================================
-# 2. 設定選單 (Expander)
-# ==========================================
+# 不再需要複雜的 URL 參數，只要加上 key=""，Streamlit 就會自動在重整時記住使用者的選擇
 with st.expander("⚙️ 點擊展開 / 隱藏介面設定 (風格切換)", expanded=False):
     style_choice = st.radio(
         "請選擇您喜歡的顯示風格：",
         STYLE_OPTIONS,
-        index=STYLE_OPTIONS.index(saved_style),
+        index=0, # 預設：經典簡約卡片
+        key="ui_style", 
         horizontal=True
     )
     
     selected_floors = st.multiselect(
         "🏢 請選擇要監控的樓層 (支援單選與多選)：",
         options=all_floors,
-        default=valid_floors
+        default=all_floors,
+        key="floor_filter"
     )
 
-# --- 狀態強制同步 ---
-# 只要使用者點擊了選項，立刻將最新狀態寫入網址列！
-# 確保 5 分鐘後重新整理時，瀏覽器抓到的是最新的 URL。
-try:
-    if hasattr(st, "query_params"):
-        st.query_params["style"] = style_choice
-        st.query_params["floors"] = selected_floors
-    else:
-        st.experimental_set_query_params(style=style_choice, floors=selected_floors)
-except Exception:
-    pass
+st.markdown("<hr style='margin-top: 5px; margin-bottom: 15px;'>", unsafe_allow_html=True)
 
 # ==========================================
-# 3. CSS 樣式定義
+# 2. CSS 樣式定義
 # ==========================================
 common_css = """
 <style>
@@ -164,7 +131,7 @@ elif style_choice == "玻璃擬物 (液體波紋)": st.markdown(css_glassmorphis
 elif style_choice == "極簡光環 (脈動警報)": st.markdown(css_ringpulse, unsafe_allow_html=True)
 
 # ==========================================
-# 4. 資料獲取與處理
+# 3. 資料獲取與處理
 # ==========================================
 SHEET_ID = "17msOHAvXZ9iND5fMJVUd7n3C_TFXD-uTFH4rvVLwJ7k".strip()
 GID = "0" 
@@ -193,7 +160,7 @@ def get_status_color(temp, humi):
     except: return "offline"
 
 # ==========================================
-# 5. 介面渲染函數
+# 4. 介面渲染函數
 # ==========================================
 def render_card(chamber_id, data_dict):
     temp = data_dict.get(chamber_id, {}).get('temp', "---")
@@ -230,10 +197,8 @@ def render_card(chamber_id, data_dict):
         return f'<div class="ring-card {alert_class}"><div class="ring-header">{chamber_id}</div><div class="ring-container"><div style="text-align:center;"><div class="ring-gauge" style="background: conic-gradient({color_t} {temp_pct}%, #edf2f7 0);"><div class="ring-inner">Temp</div></div><div class="ring-data-val">{temp_disp}</div></div><div style="text-align:center;"><div class="ring-gauge" style="background: conic-gradient({color_h} {humi_pct}%, #edf2f7 0);"><div class="ring-inner">Humi</div></div><div class="ring-data-val">{humi_disp}</div></div></div></div>'
 
 # ==========================================
-# 6. 主畫面佈局渲染
+# 5. 主畫面佈局渲染
 # ==========================================
-st.markdown("<hr style='margin-top: 5px; margin-bottom: 15px;'>", unsafe_allow_html=True)
-
 data_dict = get_latest_data()
 
 if not selected_floors:
