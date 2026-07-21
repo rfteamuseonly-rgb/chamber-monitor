@@ -319,7 +319,7 @@ else:
     for floor in all_floors:
         if floor in selected_floors:
             rooms = Chambers[floor]
-            st.markdown(f"### 📍 {floor} Chamber")
+            st.markdown(f"### 🌡️ {floor} Chamber")
             cols = st.columns(4) 
             for i, chamber in enumerate(rooms):
                 with cols[i % 4]:
