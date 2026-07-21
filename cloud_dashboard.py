@@ -1,30 +1,20 @@
 import streamlit as st
 import pandas as pd
-import streamlit.components.v1 as components
 
 # 設定網頁標題與寬度 (初始隱藏側邊欄)
 st.set_page_config(page_title="Chamber 環境雲端看板", layout="wide", initial_sidebar_state="collapsed")
 
 # ==========================================
-# 0. 網頁自動重整 (保留參數機制) 與 主標題
+# 0. 網頁自動重整與主標題
 # ==========================================
-# ❌ 移除會吃掉狀態的 <meta refresh>
-# ✅ 改用 JavaScript 讀取外層完整網址並重新載入，確保 Query Params 不會遺失
-components.html(
-    """
-    <script>
-    setTimeout(function() {
-        window.parent.location.href = window.parent.location.href;
-    }, 300000); // 300000 毫秒 = 5 分鐘
-    </script>
-    """,
-    height=0,
-    width=0
-)
-
+# 啟用瀏覽器自動重整 (每 5 分鐘)
+# 這裡會自動依照當下瀏覽器網址列的完整 URL (包含設定參數) 進行重新載入
+st.markdown('<meta http-equiv="refresh" content="300">', unsafe_allow_html=True)
 st.markdown("<h2 style='margin-bottom:10px;'>🏭 Chamber 溫濕度雲端即時監控</h2>", unsafe_allow_html=True)
 
-# 定義所有的 Chamber 樓層與房間 (提早定義，供狀態初始化使用)
+# ==========================================
+# 1. 樓層定義與狀態參數還原 (核心修正區)
+# ==========================================
 Chambers = {
     "5F": ["502", "503", "504", "505", "509", "510", "511"],
     "6F": ["602", "603", "604", "605", "607", "608"],
@@ -33,59 +23,65 @@ Chambers = {
 }
 all_floors = list(Chambers.keys())
 
-# ==========================================
-# 1. 狀態保留機制 (Session State + Query Params)
-# ==========================================
 STYLE_OPTIONS = [
     "經典簡約卡片", "科技儀表板 (深色)", "新擬態風格 (柔和)", "極簡進度條 (直觀)",
     "賽博龐克 (霓虹科幻)", "玻璃擬物 (液體波紋)", "極簡光環 (脈動警報)"
 ]
 
-# 步驟 A: 讀取網址參數來初始化 Session State
-if "style_choice" not in st.session_state:
-    st.session_state.style_choice = st.query_params.get("style", "經典簡約卡片")
-    # 防呆：如果網址參數被亂改，退回預設值
-    if st.session_state.style_choice not in STYLE_OPTIONS:
-        st.session_state.style_choice = "經典簡約卡片"
+# --- 從網址列讀取記憶的設定 (相容新舊版 Streamlit API) ---
+saved_style = "經典簡約卡片"
+saved_floors = all_floors
 
-if "floor_choice" not in st.session_state:
-    q_floors = st.query_params.get_all("floors")
-    st.session_state.floor_choice = q_floors if q_floors else all_floors
+try:
+    if hasattr(st, "query_params"):  # Streamlit >= 1.30
+        if "style" in st.query_params:
+            saved_style = st.query_params["style"]
+        if "floors" in st.query_params:
+            saved_floors = st.query_params.get_all("floors")
+    else:  # Streamlit < 1.30
+        params = st.experimental_get_query_params()
+        if "style" in params:
+            saved_style = params["style"][0]
+        if "floors" in params:
+            saved_floors = params["floors"]
+except Exception:
+    pass
 
-# 步驟 B: 確保第一次載入時，預設狀態也有寫入網址列
-if "initialized" not in st.session_state:
-    st.query_params["style"] = st.session_state.style_choice
-    st.query_params["floors"] = st.session_state.floor_choice
-    st.session_state.initialized = True
-
-# 步驟 C: 定義狀態改變時的 Callback (同步更新網址參數)
-def update_params():
-    st.query_params["style"] = st.session_state.style_choice
-    st.query_params["floors"] = st.session_state.floor_choice
+# 防呆：確保讀取到的設定是合法的
+if saved_style not in STYLE_OPTIONS:
+    saved_style = "經典簡約卡片"
+valid_floors = [f for f in saved_floors if f in all_floors]
+if not valid_floors:
+    valid_floors = all_floors
 
 # ==========================================
-# 2. 設定選單：折疊面板 (Expander)
+# 2. 設定選單 (Expander)
 # ==========================================
 with st.expander("⚙️ 點擊展開 / 隱藏介面設定 (風格切換)", expanded=False):
-    # 透過 key 屬性將元件直接綁定到 session_state，並設定 on_change 事件
-    st.radio(
+    style_choice = st.radio(
         "請選擇您喜歡的顯示風格：",
         STYLE_OPTIONS,
-        key="style_choice",
-        on_change=update_params,
+        index=STYLE_OPTIONS.index(saved_style),
         horizontal=True
     )
     
-    st.multiselect(
+    selected_floors = st.multiselect(
         "🏢 請選擇要監控的樓層 (支援單選與多選)：",
         options=all_floors,
-        key="floor_choice",
-        on_change=update_params
+        default=valid_floors
     )
 
-# 將當下的選擇存為變數，供後續渲染使用
-style_choice = st.session_state.style_choice
-selected_floors = st.session_state.floor_choice
+# --- 狀態強制同步 ---
+# 只要使用者點擊了選項，立刻將最新狀態寫入網址列！
+# 確保 5 分鐘後重新整理時，瀏覽器抓到的是最新的 URL。
+try:
+    if hasattr(st, "query_params"):
+        st.query_params["style"] = style_choice
+        st.query_params["floors"] = selected_floors
+    else:
+        st.experimental_set_query_params(style=style_choice, floors=selected_floors)
+except Exception:
+    pass
 
 # ==========================================
 # 3. CSS 樣式定義
@@ -105,7 +101,6 @@ css_classic = "<style>.sensor-card { border-radius: 8px; padding: 12px; margin-b
 css_modern = "<style>.stApp { background-color: #121420; color: white; } h1, h2, h3, h4, h5, h6, span { color: #e2e8f0 !important; } .tech-card { background: linear-gradient(145deg, #2A2D43, #1e2030); border-radius: 10px; padding: 12px; margin-bottom: 12px; box-shadow: 0 6px 12px rgba(0,0,0,0.3); border: 1px solid #3b3f5c; } .tech-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #4b5070; padding-bottom: 6px; margin-bottom: 10px; } .tech-room { font-size: 1.25em; font-weight: bold; } .gauges-container { display: flex; justify-content: space-around; margin-bottom: 5px;} .gauge-wrapper { display: flex; flex-direction: column; align-items: center; } .gauge-ring { width: 70px; height: 70px; border-radius: 50%; display: flex; justify-content: center; align-items: center; background: #1e2030; border: 4px solid #4b5070; } .gauge-val { font-size: 1.1em; font-weight: bold; } .gauge-title { margin-top: 6px; font-size: 0.8em; color: #8fa1cd; } .status-green .gauge-ring { border-color: #00d2ff; box-shadow: 0 0 10px rgba(0,210,255,0.3); } .tech-timestamp { font-size: 0.75em; color: #6b7280; text-align: center; margin-top: 8px; }</style>"
 css_neumorphism = "<style>.stApp { background-color: #e0e5ec; color: #4a4a4a; } h1, h2, h3 { color: #4a4a4a !important; text-shadow: 1px 1px 2px rgba(163,177,198,0.5); } .neu-card { background-color: #e0e5ec; border-radius: 15px; padding: 15px; margin-bottom: 15px; box-shadow: 6px 6px 12px rgb(163,177,198,0.5), -6px -6px 12px rgba(255,255,255, 0.5); } .neu-header { display: flex; justify-content: space-between; margin-bottom: 10px; } .neu-room { font-size: 1.3em; font-weight: bold; color: #5a6a85; } .neu-data { background-color: #e0e5ec; border-radius: 8px; padding: 8px; margin-bottom: 8px; text-align: center; box-shadow: inset 4px 4px 8px rgb(163,177,198,0.5), inset -4px -4px 8px rgba(255,255,255, 0.5); font-size: 0.9em;} .neu-val { font-size: 1.3em; font-weight: 900; } .neu-green .neu-val { color: #2ecc71; } .neu-timestamp { font-size: 0.75em; color: #8fa1cd; text-align: right; margin-top: 5px; }</style>"
 css_minimal = "<style>.min-card { background: #fff; border-radius: 10px; padding: 15px; margin-bottom: 12px; border: 1px solid #f0f0f0; box-shadow: 0 2px 5px rgba(0,0,0,0.05); } .min-status-green { border-left: 6px solid #28a745; } .min-status-yellow { border-left: 6px solid #ffc107; background-color: #fffffc; } .min-status-red { border-left: 6px solid #dc3545; background-color: #fffafa; } .min-header { font-size: 1.1em; font-weight: bold; color: #222; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;} .bar-bg { background: #f0f0f0; border-radius: 8px; height: 8px; width: 100%; margin: 4px 0 12px 0; overflow: hidden; } .bar-fill-temp { height: 100%; border-radius: 8px; background: linear-gradient(90deg, #ff9a9e 0%, #fecfef 100%); } .bar-fill-humi { height: 100%; border-radius: 8px; background: linear-gradient(90deg, #a1c4fd 0%, #c2e9fb 100%); } .min-label { display: flex; justify-content: space-between; font-size: 0.85em; color: #666; font-weight: bold; } .min-timestamp { font-size: 0.75em; color: #aaa; text-align: right; margin-top: 5px; }</style>"
-
 css_cyberpunk = """
 <style>
     .stApp { background-color: #010103; color: #0ff; font-family: 'Courier New', Courier, monospace; }
@@ -125,7 +120,6 @@ css_cyberpunk = """
     @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 </style>
 """
-
 css_glassmorphism = """
 <style>
     .stApp { background-color: #e6e6e6; color: #333; }
@@ -144,7 +138,6 @@ css_glassmorphism = """
     @keyframes liquid-spin { 0% { transform: translateY(50%) rotate(0deg); } 100% { transform: translateY(50%) rotate(360deg); } }
 </style>
 """
-
 css_ringpulse = """
 <style>
     .stApp { background-color: #f7f9fa; color: #1f2937; }
