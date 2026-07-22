@@ -6,14 +6,15 @@ from streamlit_autorefresh import st_autorefresh
 st.set_page_config(page_title="Chamber 環境雲端看板", layout="wide", initial_sidebar_state="collapsed")
 
 # ==========================================
-# 0. 網頁自動重整機制
+# 0. 網頁平滑自動重整機制
 # ==========================================
+# 背景定時更新，不會刷白畫面
 st_autorefresh(interval=300000, limit=None, key="data_refresh")
 
 st.markdown("<h2 style='margin-bottom:10px;'>🏭 Chamber 溫濕度雲端即時監控</h2>", unsafe_allow_html=True)
 
 # ==========================================
-# 1. 樓層定義與狀態選單
+# 1. 樓層定義與【網址列狀態強制同步】機制
 # ==========================================
 Chambers = {
     "5F": ["502", "503", "504", "505", "509", "510", "511"],
@@ -28,26 +29,54 @@ STYLE_OPTIONS = [
     "賽博龐克 (霓虹科幻)", "玻璃擬物 (液體波紋)", "極簡光環 (脈動警報)"
 ]
 
+# --- 讀取網址列先前的記憶 (抵抗瀏覽器休眠與 F5 刷新) ---
+if "style" in st.query_params:
+    init_style = st.query_params["style"]
+    if init_style not in STYLE_OPTIONS:
+        init_style = "經典簡約卡片"
+else:
+    init_style = "經典簡約卡片"
+
+if "floors" in st.query_params:
+    init_floors = st.query_params.get_all("floors")
+    # 過濾掉異常值
+    init_floors = [f for f in init_floors if f in all_floors]
+    if not init_floors:
+        init_floors = all_floors
+else:
+    init_floors = all_floors
+
+# --- 定義 Callback：當選項改變時，立刻寫入網址列 ---
+def sync_to_url():
+    st.query_params["style"] = st.session_state.ui_style
+    st.query_params["floors"] = st.session_state.floor_filter
+
 with st.expander("⚙️ 點擊展開 / 隱藏介面設定 (風格切換)", expanded=False):
     style_choice = st.radio(
         "請選擇您喜歡的顯示風格：",
         STYLE_OPTIONS,
-        index=0, 
+        index=STYLE_OPTIONS.index(init_style),
         key="ui_style", 
+        on_change=sync_to_url, # 觸發同步
         horizontal=True
     )
     
     selected_floors = st.multiselect(
         "🏢 請選擇要監控的樓層 (支援單選與多選)：",
         options=all_floors,
-        default=all_floors,
-        key="floor_filter"
+        default=init_floors,
+        key="floor_filter",
+        on_change=sync_to_url # 觸發同步
     )
+
+# 確保首次載入時，網址列也有參數
+if "style" not in st.query_params or "floors" not in st.query_params:
+    sync_to_url()
 
 st.markdown("<hr style='margin-top: 5px; margin-bottom: 15px;'>", unsafe_allow_html=True)
 
 # ==========================================
-# 2. 完整展開的 CSS 樣式定義
+# 2. 完整展開的 CSS 樣式定義 (包含大字體與並排修正)
 # ==========================================
 st.markdown("""
 <style>
@@ -57,7 +86,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 1. 經典簡約卡片
 css_classic = """
 <style>
     .sensor-card { border-radius: 8px; padding: 12px; margin-bottom: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: 1px solid #e0e0e0; background-color: white; color: #333; }
@@ -73,7 +101,6 @@ css_classic = """
 </style>
 """
 
-# 2. 科技儀表板 (深色)
 css_modern = """
 <style>
     .stApp { background-color: #121420; color: white; }
@@ -93,7 +120,6 @@ css_modern = """
 </style>
 """
 
-# 3. 新擬態風格
 css_neumorphism = """
 <style>
     .stApp { background-color: #e0e5ec; color: #4a4a4a; }
@@ -110,7 +136,6 @@ css_neumorphism = """
 </style>
 """
 
-# 4. 極簡進度條
 css_minimal = """
 <style>
     .min-card { background: #fff; border-radius: 10px; padding: 15px; margin-bottom: 12px; border: 1px solid #f0f0f0; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
@@ -132,7 +157,6 @@ css_minimal = """
 </style>
 """
 
-# 5. 賽博龐克 (大幅修改排版與字體大小)
 css_cyberpunk = """
 <style>
     .stApp { background-color: #010103; color: #0ff; font-family: 'Courier New', Courier, monospace; }
@@ -140,12 +164,9 @@ css_cyberpunk = """
     .cyber-card { background: #010103; border: 2px solid #0ff; border-radius: 8px; padding: 15px; margin-bottom: 15px; position: relative; }
     .cyber-header { font-size: 1.4em; font-weight: bold; display: flex; justify-content: space-between; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px dashed; }
     
-    /* 新增左右並排容器 */
     .cyber-data-container { display: flex; justify-content: space-around; align-items: center; margin: 15px 0; }
     .cyber-data { font-size: 1.1em; text-align: center; } 
-    
-    /* 將數值變大並設定為 block 讓它換行顯示在標籤下方 */
-    .cyber-val { font-size: 2.4em; font-weight: bold; display: block; margin-top: 5px; }
+    .cyber-val { font-size: 2.2em; font-weight: bold; display: block; margin-top: 5px; }
     
     .cyber-warn-badge { display: none; color: #fff; padding: 2px 6px; font-size: 0.6em; border-radius: 3px; animation: blink 0.5s infinite;}
     
@@ -172,7 +193,6 @@ css_cyberpunk = """
 </style>
 """
 
-# 6. 玻璃擬物
 css_glassmorphism = """
 <style>
     .stApp { background-color: #e6e6e6; color: #333; }
@@ -205,7 +225,6 @@ css_glassmorphism = """
 </style>
 """
 
-# 7. 極簡光環
 css_ringpulse = """
 <style>
     .stApp { background-color: #f7f9fa; color: #1f2937; }
@@ -228,7 +247,6 @@ css_ringpulse = """
 </style>
 """
 
-# 套用樣式
 if style_choice == "經典簡約卡片": st.markdown(css_classic, unsafe_allow_html=True)
 elif style_choice == "科技儀表板 (深色)": st.markdown(css_modern, unsafe_allow_html=True)
 elif style_choice == "新擬態風格 (柔和)": st.markdown(css_neumorphism, unsafe_allow_html=True)
@@ -297,7 +315,6 @@ def render_card(chamber_id, data_dict):
     
     elif style_choice == "賽博龐克 (霓虹科幻)":
         warn_txt = "SYS.OK" if status == "green" else ("SYS.WARN" if status == "yellow" else "SYS.ERR")
-        # 修改點：加入了 cyber-data-container，將資料並排並加大文字
         return f'<div class="cyber-card cyber-{status}"><div class="cyber-header"><span>{chamber_id}</span><span class="cyber-warn-badge">{warn_txt}</span></div><div class="cyber-data-container"><div class="cyber-data">TMP<span class="cyber-val">{temp_disp}</span></div><div class="cyber-data">HUM<span class="cyber-val">{humi_disp}</span></div></div><div style="font-size:0.7em; color:#888; text-align:right; margin-top:8px;">LAST_SYNC: {time_disp}</div></div>'
     
     elif style_choice == "玻璃擬物 (液體波紋)":
@@ -319,7 +336,7 @@ else:
     for floor in all_floors:
         if floor in selected_floors:
             rooms = Chambers[floor]
-            st.markdown(f"### 🌡️ {floor} Chamber")
+            st.markdown(f"### 📍 {floor} Chamber")
             cols = st.columns(4) 
             for i, chamber in enumerate(rooms):
                 with cols[i % 4]:
