@@ -266,14 +266,35 @@ CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:cs
 def get_latest_data():
     try:
         df = pd.read_csv(CSV_URL)
-        df.columns = ['更新時間', 'Chamber', '溫度', '濕度', '狀態']
-        df['Chamber'] = df['Chamber'].astype(str)
+
+        # 🌟 關鍵修正：相容 7 欄（含機型、IP）與 5 欄（舊格式），避免欄位數量不符報錯
+        if len(df.columns) >= 7:
+            df = df.iloc[:, :7]
+            df.columns = ['更新時間', 'Chamber', '溫度', '濕度', '狀態', '機型', 'IP']
+        else:
+            df = df.iloc[:, :5]
+            df.columns = ['更新時間', 'Chamber', '溫度', '濕度', '狀態']
+            df['機型'] = "---"
+            df['IP'] = "---"
+
+        # 清理 Chamber 名稱（避免 pandas 讀成 "502.0" 或帶有前後空白導致比對不到）
+        df['Chamber'] = df['Chamber'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
         latest_df = df.drop_duplicates(subset=['Chamber'], keep='first')
+
         data_dict = {}
         for _, row in latest_df.iterrows():
-            data_dict[row['Chamber']] = {"temp": row['溫度'], "humi": row['濕度'], "time": row['更新時間']}
+            data_dict[row['Chamber']] = {
+                "temp": row['溫度'],
+                "humi": row['濕度'],
+                "time": row['更新時間'],
+                "type": row['機型'],
+                "ip": row['IP']
+            }
         return data_dict
-    except: return {}
+    except Exception as e:
+        # 顯示實際錯誤訊息，方便日後排查
+        st.error(f"⚠️ 資料讀取異常：{e}")
+        return {}
 
 def get_status_color(temp, humi):
     if pd.isna(temp) or pd.isna(humi) or temp == "---" or humi == "---": return "offline"
