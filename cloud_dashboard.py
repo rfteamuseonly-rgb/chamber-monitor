@@ -306,45 +306,116 @@ def get_status_color(temp, humi):
     except: return "offline"
 
 # ==========================================
-# 4. 介面渲染函數
+# 4. 介面渲染函數 (加入 機型 與 IP 顯示)
 # ==========================================
 def render_card(chamber_id, data_dict):
-    temp = data_dict.get(chamber_id, {}).get('temp', "---")
-    humi = data_dict.get(chamber_id, {}).get('humi', "---")
-    time_raw = data_dict.get(chamber_id, {}).get('time', "無資料")
+    room_data = data_dict.get(chamber_id, {})
+    temp = room_data.get('temp', "---")
+    humi = room_data.get('humi', "---")
+    time_raw = room_data.get('time', "無資料")
+    m_type_raw = room_data.get('type', "---")
+    ip_raw = room_data.get('ip', "---")
     
-    temp_disp = f"{float(temp):.1f}°C" if temp != "---" else "--"
-    humi_disp = f"{float(humi):.1f}%" if humi != "---" else "--"
+    # 數值與空值防呆處理（避免舊資料空白欄位顯示成 nan）
+    temp_disp = f"{float(temp):.1f}°C" if temp != "---" and not pd.isna(temp) else "--"
+    humi_disp = f"{float(humi):.1f}%" if humi != "---" and not pd.isna(humi) else "--"
+    m_type = "---" if pd.isna(m_type_raw) or str(m_type_raw).strip() == "" else str(m_type_raw).strip()
+    ip_addr = "---" if pd.isna(ip_raw) or str(ip_raw).strip() == "" else str(ip_raw).strip()
+    
     status = get_status_color(temp, humi) 
     time_disp = str(time_raw).split(" ")[-1] if " " in str(time_raw) else time_raw
     
-    temp_pct = min((float(temp) / 40.0) * 100, 100) if temp != "---" else 0
-    humi_pct = min((float(humi) / 100.0) * 100, 100) if humi != "---" else 0
+    temp_pct = min((float(temp) / 40.0) * 100, 100) if temp != "---" and not pd.isna(temp) else 0
+    humi_pct = min((float(humi) / 100.0) * 100, 100) if humi != "---" and not pd.isna(humi) else 0
+
+    # 統一的底部資訊列字串
+    meta_info = f"{m_type} · {ip_addr}"
 
     if style_choice == "經典簡約卡片":
-        return f'<div class="sensor-card status-{status}"><div class="card-header"><span class="room-name">{chamber_id}</span></div><div class="data-row">Temp: <span class="data-val">{temp_disp}</span></div><div class="data-row">Humidity: <span class="data-val">{humi_disp}</span></div><div class="timestamp">Updated: {time_disp}</div></div>'
+        return (
+            f'<div class="sensor-card status-{status}">'
+            f'<div class="card-header"><span class="room-name">{chamber_id}</span></div>'
+            f'<div class="data-row">Temp: <span class="data-val">{temp_disp}</span></div>'
+            f'<div class="data-row">Humidity: <span class="data-val">{humi_disp}</span></div>'
+            f'<div style="display:flex; justify-content:space-between; font-size:0.75em; color:#888; margin-top:8px; border-top:1px solid #eee; padding-top:4px;">'
+            f'<span>{meta_info}</span><span>{time_disp}</span></div></div>'
+        )
     
     elif style_choice == "科技儀表板 (深色)":
-        return f'<div class="tech-card status-{status}"><div class="tech-header"><span class="tech-room">{chamber_id}</span></div><div class="gauges-container"><div class="gauge-wrapper"><div class="gauge-ring"><span class="gauge-val">{temp_disp}</span></div></div><div class="gauge-wrapper"><div class="gauge-ring"><span class="gauge-val">{humi_disp}</span></div></div></div><div class="tech-timestamp">Updated: {time_disp}</div></div>'
+        return (
+            f'<div class="tech-card status-{status}">'
+            f'<div class="tech-header"><span class="tech-room">{chamber_id}</span></div>'
+            f'<div class="gauges-container">'
+            f'<div class="gauge-wrapper"><div class="gauge-ring"><span class="gauge-val">{temp_disp}</span></div></div>'
+            f'<div class="gauge-wrapper"><div class="gauge-ring"><span class="gauge-val">{humi_disp}</span></div></div>'
+            f'</div>'
+            f'<div style="display:flex; justify-content:space-between; font-size:0.75em; color:#8fa1cd; margin-top:10px; border-top:1px solid #3b3f5c; padding-top:5px;">'
+            f'<div>{meta_info}</div><div>{time_disp}</div></div></div>'
+        )
     
     elif style_choice == "新擬態風格 (柔和)":
-        return f'<div class="neu-card neu-{status}"><div class="neu-header"><span class="neu-room">{chamber_id}</span></div><div class="neu-data">溫度 <br><span class="neu-val">{temp_disp}</span></div><div class="neu-data">濕度 <br><span class="neu-val">{humi_disp}</span></div><div class="neu-timestamp">Updated: {time_disp}</div></div>'
+        return (
+            f'<div class="neu-card neu-{status}">'
+            f'<div class="neu-header"><span class="neu-room">{chamber_id}</span></div>'
+            f'<div class="neu-data">溫度 <br><span class="neu-val">{temp_disp}</span></div>'
+            f'<div class="neu-data">濕度 <br><span class="neu-val">{humi_disp}</span></div>'
+            f'<div style="display:flex; justify-content:space-between; font-size:0.75em; color:#7f8c8d; margin-top:8px;">'
+            f'<span>{meta_info}</span><span>{time_disp}</span></div></div>'
+        )
     
     elif style_choice == "極簡進度條 (直觀)":
         icon = "🟢" if status == "green" else "🟡" if status == "yellow" else "🔴"
-        return f'<div class="min-card min-status-{status}"><div class="min-header"><span>{chamber_id}</span><span>{icon}</span></div><div class="min-label"><span>溫度</span> <span>{temp_disp}</span></div><div class="bar-bg"><div class="bar-fill" style="width: {temp_pct}%;"></div></div><div class="min-label"><span>濕度</span> <span>{humi_disp}</span></div><div class="bar-bg"><div class="bar-fill" style="width: {humi_pct}%;"></div></div><div class="min-timestamp">Updated: {time_disp}</div></div>'
+        return (
+            f'<div class="min-card min-status-{status}">'
+            f'<div class="min-header"><span>{chamber_id}</span><span>{icon}</span></div>'
+            f'<div class="min-label"><span>溫度</span> <span>{temp_disp}</span></div>'
+            f'<div class="bar-bg"><div class="bar-fill" style="width: {temp_pct}%;"></div></div>'
+            f'<div class="min-label"><span>濕度</span> <span>{humi_disp}</span></div>'
+            f'<div class="bar-bg"><div class="bar-fill" style="width: {humi_pct}%;"></div></div>'
+            f'<div style="display:flex; justify-content:space-between; font-size:0.75em; color:#999; margin-top:8px;">'
+            f'<span>{meta_info}</span><span>{time_disp}</span></div></div>'
+        )
     
     elif style_choice == "賽博龐克 (霓虹科幻)":
         warn_txt = "SYS.OK" if status == "green" else ("SYS.WARN" if status == "yellow" else "SYS.ERR")
-        return f'<div class="cyber-card cyber-{status}"><div class="cyber-header"><span>{chamber_id}</span><span class="cyber-warn-badge">{warn_txt}</span></div><div class="cyber-data-container"><div class="cyber-data">TMP<span class="cyber-val">{temp_disp}</span></div><div class="cyber-data">HUM<span class="cyber-val">{humi_disp}</span></div></div><div style="font-size:0.7em; color:#888; text-align:right; margin-top:8px;">LAST_SYNC: {time_disp}</div></div>'
+        return (
+            f'<div class="cyber-card cyber-{status}">'
+            f'<div class="cyber-header"><span>{chamber_id}</span><span class="cyber-warn-badge">{warn_txt}</span></div>'
+            f'<div class="cyber-data-container">'
+            f'<div class="cyber-data">TMP<span class="cyber-val">{temp_disp}</span></div>'
+            f'<div class="cyber-data">HUM<span class="cyber-val">{humi_disp}</span></div>'
+            f'</div>'
+            f'<div style="display:flex; justify-content:space-between; font-size:0.7em; color:#888; margin-top:8px; border-top:1px dashed #333; padding-top:4px;">'
+            f'<span>[{m_type}] {ip_addr}</span><span>SYNC: {time_disp}</span></div></div>'
+        )
     
     elif style_choice == "玻璃擬物 (液體波紋)":
-        return f'<div class="glass-card glass-{status}"><div class="glass-liquid" style="top: {100 - (humi_pct * 0.8)}%;"></div><div class="glass-header">{chamber_id}</div><div class="glass-data-row"><div class="glass-data-block"><div class="glass-label">溫度</div><div class="glass-val">{temp_disp}</div></div><div class="glass-data-block"><div class="glass-label">濕度</div><div class="glass-val">{humi_disp}</div></div></div><div class="glass-timestamp">Updated: {time_disp}</div></div>'
+        # 注意：必須加上 position:relative; z-index:2; 才不會被底層液體動畫蓋住
+        return (
+            f'<div class="glass-card glass-{status}">'
+            f'<div class="glass-liquid" style="top: {100 - (humi_pct * 0.8)}%;"></div>'
+            f'<div class="glass-header">{chamber_id}</div>'
+            f'<div class="glass-data-row">'
+            f'<div class="glass-data-block"><div class="glass-label">溫度</div><div class="glass-val">{temp_disp}</div></div>'
+            f'<div class="glass-data-block"><div class="glass-label">濕度</div><div class="glass-val">{humi_disp}</div></div>'
+            f'</div>'
+            f'<div style="display:flex; justify-content:space-between; font-size:0.7em; color:#555; margin-top:8px; z-index:2; position:relative;">'
+            f'<span>{meta_info}</span><span>{time_disp}</span></div></div>'
+        )
     
     elif style_choice == "極簡光環 (脈動警報)":
         color_t = "#fc8181" if status == "red" else ("#ecc94b" if status == "yellow" else "#4299e1")
         color_h = "#fc8181" if status == "red" else ("#ecc94b" if status == "yellow" else "#48bb78")
-        return f'<div class="ring-card ring-{status}"><div class="ring-header">{chamber_id}</div><div class="ring-container"><div style="text-align:center;"><div class="ring-gauge" style="background: conic-gradient({color_t} {temp_pct}%, #edf2f7 0);"><div class="ring-inner">Temp</div></div><div class="ring-data-val">{temp_disp}</div></div><div style="text-align:center;"><div class="ring-gauge" style="background: conic-gradient({color_h} {humi_pct}%, #edf2f7 0);"><div class="ring-inner">Humi</div></div><div class="ring-data-val">{humi_disp}</div></div></div><div class="ring-timestamp">Updated: {time_disp}</div></div>'
+        return (
+            f'<div class="ring-card ring-{status}">'
+            f'<div class="ring-header">{chamber_id}</div>'
+            f'<div class="ring-container">'
+            f'<div style="text-align:center;"><div class="ring-gauge" style="background: conic-gradient({color_t} {temp_pct}%, #edf2f7 0);"><div class="ring-inner">Temp</div></div><div class="ring-data-val">{temp_disp}</div></div>'
+            f'<div style="text-align:center;"><div class="ring-gauge" style="background: conic-gradient({color_h} {humi_pct}%, #edf2f7 0);"><div class="ring-inner">Humi</div></div><div class="ring-data-val">{humi_disp}</div></div>'
+            f'</div>'
+            f'<div style="display:flex; justify-content:space-between; width:100%; font-size:0.75em; color:#a0aec0; margin-top:12px;">'
+            f'<span>{meta_info}</span><span>{time_disp}</span></div></div>'
+        )
 
 # ==========================================
 # 5. 主畫面佈局渲染
